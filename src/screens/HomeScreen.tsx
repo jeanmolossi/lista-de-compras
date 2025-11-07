@@ -7,17 +7,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import CategorySection from '../components/CategorySection';
 import ItemModal from '../components/ItemModal';
 import PrimaryButton from '../components/PrimaryButton';
 import { useShoppingList } from '../store/ShoppingListProvider';
 import { ShoppingItem } from '../store/types';
-import { RootStackParamList } from '../app/RootNavigator';
 
 const HomeScreen = (): JSX.Element => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const router = useRouter();
   const {
     activeList,
     total,
@@ -81,7 +79,7 @@ const HomeScreen = (): JSX.Element => {
           </Text>
           <PrimaryButton
             title="Gerar com IA"
-            onPress={() => navigation.navigate('Chat')}
+            onPress={() => router.push('/chat')}
             style={styles.heroButton}
             variant="secondary"
           />
@@ -89,7 +87,7 @@ const HomeScreen = (): JSX.Element => {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Sua lista atual</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('CategoryManagement')}>
+          <TouchableOpacity onPress={() => router.push('/categories')}>
             <Text style={styles.link}>Gerenciar categorias</Text>
           </TouchableOpacity>
         </View>
@@ -132,7 +130,7 @@ const HomeScreen = (): JSX.Element => {
         />
         <TouchableOpacity
           style={styles.historyButton}
-          onPress={() => navigation.navigate('ListHistory')}
+          onPress={() => router.push('/history')}
         >
           <Text style={styles.link}>Ver histórico de compras</Text>
         </TouchableOpacity>

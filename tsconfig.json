@@ -12,5 +12,5 @@
     "esModuleInterop": true,
     "jsx": "react-native"
   },
-  "include": ["App.tsx", "app.config.ts", "src"]
+  "include": ["App.tsx", "app.config.ts", "app", "src"]
 }

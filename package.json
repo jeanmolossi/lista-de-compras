@@ -2,7 +2,7 @@
   "name": "lista-de-compras",
   "version": "1.0.0",
   "private": true,
-  "main": "expo/AppEntry.js",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@react-native-community/eslint-config": "^3.2.0",
+    "@eslint/eslintrc": "^3.2.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.2",
     "@types/react-native": "^0.73.0",
