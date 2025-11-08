@@ -3,6 +3,8 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  SafeAreaView,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -73,63 +75,75 @@ const ItemModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.wrapper}
-      >
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.container}>
-          <Text style={styles.title}>{title}</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Nome do item"
-          />
-          <View style={styles.row}>
-            <View style={[styles.rowItem, styles.rowItemSpacing]}>
-              <Text style={styles.label}>Quantidade</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.select({ ios: 16, android: 0 })}
+          style={styles.wrapper}
+        >
+          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+          <View style={styles.container}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.title}>{title}</Text>
               <TextInput
                 style={styles.input}
-                value={quantity}
-                onChangeText={setQuantity}
-                keyboardType="numeric"
+                value={name}
+                onChangeText={setName}
+                placeholder="Nome do item"
               />
-            </View>
-            <View style={styles.rowItem}>
-              <Text style={styles.label}>Preço</Text>
+              <View style={styles.row}>
+                <View style={[styles.rowItem, styles.rowItemSpacing]}>
+                  <Text style={styles.label}>Quantidade</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.rowItem}>
+                  <Text style={styles.label}>Preço</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={price}
+                    onChangeText={setPrice}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              </View>
+              <Text style={styles.label}>Observações</Text>
               <TextInput
-                style={styles.input}
-                value={price}
-                onChangeText={setPrice}
-                keyboardType="decimal-pad"
+                style={[styles.input, styles.notesInput]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Ex: marca preferida, tamanho"
+                multiline
               />
-            </View>
+              <View style={styles.switchRow}>
+                <Text style={styles.label}>Item comprado</Text>
+                <Switch value={purchased} onValueChange={setPurchased} />
+              </View>
+              <PrimaryButton
+                title="Salvar"
+                onPress={handleSubmit}
+                style={styles.submitButton}
+              />
+            </ScrollView>
           </View>
-          <Text style={styles.label}>Observações</Text>
-          <TextInput
-            style={[styles.input, styles.notesInput]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Ex: marca preferida, tamanho"
-            multiline
-          />
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Item comprado</Text>
-            <Switch value={purchased} onValueChange={setPurchased} />
-          </View>
-          <PrimaryButton
-            title="Salvar"
-            onPress={handleSubmit}
-            style={styles.submitButton}
-          />
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   wrapper: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -143,6 +157,10 @@ const styles = StyleSheet.create({
     padding: 24,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    maxHeight: '85%',
+  },
+  content: {
+    paddingBottom: 16,
   },
   title: {
     fontSize: 20,
