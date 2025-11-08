@@ -22,8 +22,10 @@ const CategoryManagementScreen = (): JSX.Element => {
     if (!trimmed) {
       return;
     }
-    await addCategory(trimmed);
-    setNewCategoryName('');
+    const success = await addCategory(trimmed);
+    if (success) {
+      setNewCategoryName('');
+    }
   };
 
   const handleRename = async (category: ShoppingCategory) => {
@@ -31,12 +33,14 @@ const CategoryManagementScreen = (): JSX.Element => {
     if (!value || value === category.name) {
       return;
     }
-    await renameCategory(category.id, value);
-    setEditing((prev) => {
-      const next = { ...prev };
-      delete next[category.id];
-      return next;
-    });
+    const success = await renameCategory(category.id, value);
+    if (success) {
+      setEditing((prev) => {
+        const next = { ...prev };
+        delete next[category.id];
+        return next;
+      });
+    }
   };
 
   const confirmDelete = (categoryId: number, name: string) => {
@@ -45,7 +49,9 @@ const CategoryManagementScreen = (): JSX.Element => {
       {
         text: 'Remover',
         style: 'destructive',
-        onPress: () => removeCategory(categoryId),
+        onPress: () => {
+          removeCategory(categoryId).catch(() => undefined);
+        },
       },
     ]);
   };
@@ -86,10 +92,18 @@ const CategoryManagementScreen = (): JSX.Element => {
                 }}
               />
               <View style={styles.actions}>
-                <TouchableOpacity onPress={() => handleRename(item)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    handleRename(item).catch(() => undefined);
+                  }}
+                >
                   <Text style={styles.link}>Salvar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => confirmDelete(item.id, item.name)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    confirmDelete(item.id, item.name);
+                  }}
+                >
                   <Text style={[styles.link, styles.delete]}>Excluir</Text>
                 </TouchableOpacity>
               </View>

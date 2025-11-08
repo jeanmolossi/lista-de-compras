@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -14,11 +14,13 @@ import ItemModal from '../components/ItemModal';
 import PrimaryButton from '../components/PrimaryButton';
 import { useShoppingList } from '../store/ShoppingListProvider';
 import { ShoppingItem } from '../store/types';
+import { useSnackbar } from '../store/SnackbarProvider';
 
 const HomeScreen = (): JSX.Element => {
   const router = useRouter();
   const {
     activeList,
+    activeLists,
     total,
     loading,
     addItem,
@@ -27,7 +29,9 @@ const HomeScreen = (): JSX.Element => {
     removeItem,
     archiveActiveList,
     createNewList,
+    selectActiveList,
   } = useShoppingList();
+  const { showSnackbar } = useSnackbar();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
@@ -74,21 +78,42 @@ const HomeScreen = (): JSX.Element => {
     purchased: boolean;
   }) => {
     if (!selectedCategoryId) {
+      showSnackbar('Selecione uma categoria válida para adicionar o item.', 'error');
       return;
     }
     if (editingItem) {
-      await updateItem(editingItem.id, data);
+      const success = await updateItem(editingItem.id, data);
+      if (!success) {
+        return;
+      }
     } else {
-      await addItem(selectedCategoryId, data);
+      const success = await addItem(selectedCategoryId, data);
+      if (!success) {
+        return;
+      }
     }
     closeModal();
   };
 
   const handleCreateManualList = async () => {
     const trimmedName = manualListName.trim();
-    await createNewList(trimmedName.length > 0 ? trimmedName : 'Lista manual');
-    setManualListName('');
+    const success = await createNewList(
+      trimmedName.length > 0 ? trimmedName : 'Lista manual',
+    );
+    if (success) {
+      setManualListName('');
+    }
   };
+
+  const handleSelectList = useCallback(
+    (listId: number) => {
+      if (listId === activeList?.id) {
+        return;
+      }
+      selectActiveList(listId).catch(() => undefined);
+    },
+    [activeList?.id, selectActiveList],
+  );
 
   return (
     <View style={styles.container}>
@@ -113,6 +138,37 @@ const HomeScreen = (): JSX.Element => {
             <Text style={styles.link}>Gerenciar categorias</Text>
           </TouchableOpacity>
         </View>
+
+        {activeLists.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.listChipsContainer}
+            style={styles.listChipsScroll}
+          >
+            {activeLists.map((list) => {
+              const isSelected = list.id === activeList?.id;
+              return (
+                <TouchableOpacity
+                  key={list.id}
+                  style={[styles.listChip, isSelected && styles.listChipSelected]}
+                  onPress={() => handleSelectList(list.id)}
+                  disabled={isSelected || loading}
+                >
+                  <Text
+                    style={[
+                      styles.listChipText,
+                      isSelected && styles.listChipTextSelected,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {list.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {loading ? (
           <ActivityIndicator size="large" color="#1f7a8c" style={styles.loading} />
@@ -162,7 +218,9 @@ const HomeScreen = (): JSX.Element => {
         </View>
         <PrimaryButton
           title="Finalizar compra"
-          onPress={() => archiveActiveList()}
+          onPress={() => {
+            archiveActiveList().catch(() => undefined);
+          }}
           disabled={!activeList || loading}
           style={styles.finishButton}
         />
@@ -203,6 +261,31 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 2,
+  },
+  listChipsScroll: {
+    marginBottom: 16,
+  },
+  listChipsContainer: {
+    paddingHorizontal: 4,
+    columnGap: 8,
+  },
+  listChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#1f7a8c',
+    backgroundColor: '#ffffff',
+  },
+  listChipSelected: {
+    backgroundColor: '#1f7a8c',
+  },
+  listChipText: {
+    color: '#1f7a8c',
+    fontWeight: '600',
+  },
+  listChipTextSelected: {
+    color: '#ffffff',
   },
   hero: {
     backgroundColor: '#1f7a8c',

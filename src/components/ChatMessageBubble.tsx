@@ -1,12 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { ChatMessage } from '../store/ChatSessionProvider';
 
 type ChatMessageBubbleProps = {
-  message: {
-    id: string;
-    text: string;
-    sender: 'user' | 'assistant';
-  };
+  message: ChatMessage;
 };
 
 const ChatMessageBubble = ({ message }: ChatMessageBubbleProps): JSX.Element => {

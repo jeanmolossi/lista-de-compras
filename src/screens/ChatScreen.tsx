@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,26 +12,20 @@ import {
 } from 'react-native';
 import ChatMessageBubble from '../components/ChatMessageBubble';
 import { useShoppingList } from '../store/ShoppingListProvider';
-import { generateShoppingList } from '../services/ai/shoppingListGenerator';
-
-export type ChatMessage = {
-  id: string;
-  text: string;
-  sender: 'user' | 'assistant';
-};
+import {
+  generateShoppingListFromConversation,
+  getAssistantReply,
+} from '../services/ai/shoppingListGenerator';
+import { useChatSession, ChatMessage } from '../store/ChatSessionProvider';
+import { useSnackbar } from '../store/SnackbarProvider';
 
 const ChatScreen = (): JSX.Element => {
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const { createListFromSuggestion } = useShoppingList();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      sender: 'assistant',
-      text: 'Olá! Descreva suas necessidades e criarei uma lista de compras personalizada.',
-    },
-  ]);
+  const { messages, addMessage, resetSession, hydrated } = useChatSession();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const { showSnackbar } = useSnackbar();
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -39,9 +33,22 @@ const ChatScreen = (): JSX.Element => {
     });
   };
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages.length]);
+
+  const isGenerateCommand = useCallback((text: string) => {
+    const normalized = text.toLowerCase();
+    return (
+      normalized.includes('gere a lista') ||
+      normalized.includes('gerar a lista') ||
+      normalized.includes('gerar lista')
+    );
+  }, []);
+
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || loading) {
+    if (!trimmed || loading || !hydrated) {
       return;
     }
     const userMessage: ChatMessage = {
@@ -49,41 +56,62 @@ const ChatScreen = (): JSX.Element => {
       text: trimmed,
       sender: 'user',
     };
-    setMessages((prev) => [...prev, userMessage]);
+    const nextConversation = [...messages, userMessage];
+    addMessage(userMessage);
     setInput('');
     scrollToBottom();
     setLoading(true);
 
     try {
-      const suggestion = await generateShoppingList(trimmed);
-      await createListFromSuggestion(suggestion);
-      const summary = `Criei a lista "${suggestion.name}" com ${suggestion.categories.length} categorias. Confira os detalhes na tela inicial!`;
-      setMessages((prev) => [
-        ...prev,
-        {
+      if (isGenerateCommand(trimmed)) {
+        const suggestion = await generateShoppingListFromConversation(nextConversation);
+        await createListFromSuggestion(suggestion);
+        addMessage({
           id: `${Date.now()}-assistant`,
           sender: 'assistant',
-          text: summary,
-        },
-      ]);
+          text: `Lista "${suggestion.name}" criada com ${suggestion.categories.length} categorias. Confira os detalhes na tela inicial!`,
+        });
+        showSnackbar('Lista de compras gerada com sucesso!', 'info');
+      } else {
+        const reply = await getAssistantReply(nextConversation);
+        addMessage({
+          id: `${Date.now()}-assistant`,
+          sender: 'assistant',
+          text: reply,
+        });
+      }
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : 'Não foi possível gerar a lista no momento.';
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
-          sender: 'assistant',
-          text: `Erro: ${message}`,
-        },
-      ]);
+      showSnackbar(message, 'error');
+      addMessage({
+        id: `${Date.now()}-error`,
+        sender: 'assistant',
+        text: 'Encontrei um problema. Tente novamente em instantes.',
+      });
     } finally {
       setLoading(false);
       scrollToBottom();
     }
   };
+
+  const handleStartNewChat = () => {
+    if (loading) {
+      return;
+    }
+    resetSession().catch(() => undefined);
+  };
+
+  if (!hydrated) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1f7a8c" />
+        <Text style={styles.loadingText}>Carregando conversa...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -97,6 +125,17 @@ const ChatScreen = (): JSX.Element => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <ChatMessageBubble message={item} />}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.newChatButton}
+              onPress={handleStartNewChat}
+              disabled={loading}
+            >
+              <Text style={styles.newChatButtonText}>Iniciar novo chat</Text>
+            </TouchableOpacity>
+          </View>
+        }
       />
       <View style={styles.inputContainer}>
         <TextInput
@@ -130,6 +169,21 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 16,
   },
+  headerActions: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  newChatButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1f7a8c',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  newChatButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -160,6 +214,16 @@ const styles = StyleSheet.create({
   sendButtonText: {
     color: '#ffffff',
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f6f6f6',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#486581',
   },
 });
 

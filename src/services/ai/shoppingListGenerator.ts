@@ -1,11 +1,12 @@
 import Constants from 'expo-constants';
+import { ChatMessage } from '../../store/ChatSessionProvider';
 import { ShoppingListSuggestion } from '../../store/types';
 
 type ExtraConfig = {
   openAiApiKey?: string;
 };
 
-const SYSTEM_PROMPT = `Você é um assistente que gera listas de compras detalhadas.
+const SYSTEM_PROMPT = `Você é um assistente que gera listas de compras detalhadas com base em toda a conversa do usuário.
 Responda SOMENTE com JSON no seguinte formato:
 {
   "name": "Nome da lista",
@@ -31,6 +32,28 @@ Regras obrigatórias:
 - Informe apenas preços unitários, nunca multiplique pelo total da quantidade.
 - Crie novas categorias e itens conforme necessário, mesmo quando o usuário estiver começando do zero.
 - Nunca inclua nenhum texto fora do JSON.`;
+const GENERAL_PROMPT = `Você é um assistente especializado em planejamento de compras. Conduza uma conversa cordial, faça perguntas para entender a necessidade do usuário e compartilhe dicas úteis. Não gere a lista final de compras a menos que o usuário solicite explicitamente.`;
+
+type ChatCompletionMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+const getApiKey = (): string => {
+  const extra = (Constants.expoConfig?.extra ?? {}) as ExtraConfig;
+  const apiKey = extra.openAiApiKey ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'OPENAI_API_KEY não configurada. Defina a variável antes de usar o chat.',
+    );
+  }
+  return apiKey;
+};
+
+const mapConversationToMessages = (
+  conversation: ChatMessage[],
+): ChatCompletionMessage[] =>
+  conversation.map((message) => ({ role: message.sender, content: message.text }));
 
 const parseContent = (content: unknown): string => {
   if (!content) {
@@ -55,17 +78,11 @@ const parseContent = (content: unknown): string => {
   return '';
 };
 
-export const generateShoppingList = async (
-  prompt: string,
-): Promise<ShoppingListSuggestion> => {
-  const extra = (Constants.expoConfig?.extra ?? {}) as ExtraConfig;
-  const apiKey = extra.openAiApiKey ?? process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'OPENAI_API_KEY não configurada. Defina a variável antes de usar o chat.',
-    );
-  }
-
+const requestChatCompletion = async (
+  messages: ChatCompletionMessage[],
+  responseFormat?: 'json_object' | 'text',
+): Promise<string> => {
+  const apiKey = getApiKey();
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -74,12 +91,9 @@ export const generateShoppingList = async (
     },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-      ],
+      messages,
       temperature: 0.7,
-      response_format: { type: 'json_object' },
+      ...(responseFormat ? { response_format: { type: responseFormat } } : {}),
     }),
   });
 
@@ -93,7 +107,25 @@ export const generateShoppingList = async (
   if (!content) {
     throw new Error('Resposta inválida da API da OpenAI.');
   }
+  return content;
+};
 
+export const getAssistantReply = async (conversation: ChatMessage[]): Promise<string> => {
+  const messages: ChatCompletionMessage[] = [
+    { role: 'system', content: GENERAL_PROMPT },
+    ...mapConversationToMessages(conversation),
+  ];
+  return requestChatCompletion(messages, 'text');
+};
+
+export const generateShoppingListFromConversation = async (
+  conversation: ChatMessage[],
+): Promise<ShoppingListSuggestion> => {
+  const messages: ChatCompletionMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...mapConversationToMessages(conversation),
+  ];
+  const content = await requestChatCompletion(messages, 'json_object');
   try {
     const suggestion = JSON.parse(content) as ShoppingListSuggestion;
     return suggestion;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useShoppingList } from '../store/ShoppingListProvider';
 
@@ -15,13 +15,43 @@ const formatDate = (value: string | null): string => {
 
 const ListHistoryScreen = (): JSX.Element => {
   const { archivedLists, restoreList, deleteList } = useShoppingList();
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+      }),
+    [],
+  );
+
+  const getPurchasedTotal = useCallback(
+    (listId: number) => {
+      const list = archivedLists.find((current) => current.id === listId);
+      if (!list) {
+        return 0;
+      }
+      return list.categories.reduce((categoryAcc, category) => {
+        const categoryTotal = category.items.reduce((itemAcc, item) => {
+          if (!item.purchased) {
+            return itemAcc;
+          }
+          return itemAcc + item.price * item.quantity;
+        }, 0);
+        return categoryAcc + categoryTotal;
+      }, 0);
+    },
+    [archivedLists],
+  );
 
   const handleRestore = (id: number, name: string) => {
     Alert.alert('Restaurar lista', `Deseja restaurar "${name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Restaurar',
-        onPress: () => restoreList(id),
+        onPress: () => {
+          restoreList(id).catch(() => undefined);
+        },
       },
     ]);
   };
@@ -32,7 +62,9 @@ const ListHistoryScreen = (): JSX.Element => {
       {
         text: 'Excluir',
         style: 'destructive',
-        onPress: () => deleteList(id),
+        onPress: () => {
+          deleteList(id).catch(() => undefined);
+        },
       },
     ]);
   };
@@ -50,6 +82,9 @@ const ListHistoryScreen = (): JSX.Element => {
               <Text style={styles.title}>{item.name}</Text>
               <Text style={styles.subtitle}>
                 Finalizada em {formatDate(item.archivedAt)}
+              </Text>
+              <Text style={styles.total}>
+                Total comprado: {currencyFormatter.format(getPurchasedTotal(item.id))}
               </Text>
               <View style={styles.actions}>
                 <TouchableOpacity onPress={() => handleRestore(item.id, item.name)}>
@@ -99,6 +134,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#486581',
     marginTop: 4,
+  },
+  total: {
+    fontSize: 15,
+    color: '#102a43',
+    marginTop: 8,
+    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',
