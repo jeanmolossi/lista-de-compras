@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ChatMessageBubble from '../components/ChatMessageBubble';
 import { useShoppingList } from '../store/ShoppingListProvider';
 import {
@@ -120,60 +121,68 @@ const ChatScreen = (): JSX.Element => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={80}
-    >
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ChatMessageBubble message={item} />}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.newChatButton}
-              onPress={handleStartNewChat}
-              disabled={loading}
-            >
-              <Text style={styles.newChatButtonText}>Iniciar novo chat</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex.: Lista para churrasco com 6 pessoas"
-          value={input}
-          onChangeText={setInput}
-          editable={!loading}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.select({ ios: 80, android: 0 })}
+      >
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ChatMessageBubble message={item} />}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.newChatButton}
+                onPress={handleStartNewChat}
+                disabled={loading}
+              >
+                <Text style={styles.newChatButtonText}>Iniciar novo chat</Text>
+              </TouchableOpacity>
+            </View>
+          }
         />
-        <TouchableOpacity
-          style={[styles.sendButton, loading && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.sendButtonText}>Enviar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex.: Lista para churrasco com 6 pessoas"
+            value={input}
+            onChangeText={setInput}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.sendButtonText}>Enviar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f6f6f6',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f6f6f6',
   },
   listContent: {
     paddingVertical: 16,
+    paddingBottom: 24,
   },
   headerActions: {
     paddingHorizontal: 16,
