@@ -22,6 +22,7 @@ const HomeScreen = (): JSX.Element => {
     activeList,
     activeLists,
     total,
+    purchasedTotal,
     loading,
     addItem,
     updateItem,
@@ -47,9 +48,14 @@ const HomeScreen = (): JSX.Element => {
     [],
   );
 
-  const formattedTotal = useMemo(
+  const formattedEstimatedTotal = useMemo(
     () => currencyFormatter.format(total),
     [currencyFormatter, total],
+  );
+
+  const formattedPurchasedTotal = useMemo(
+    () => currencyFormatter.format(purchasedTotal),
+    [currencyFormatter, purchasedTotal],
   );
 
   const openModalToAdd = (categoryId: number) => {
@@ -212,9 +218,15 @@ const HomeScreen = (): JSX.Element => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>Total estimado</Text>
-          <Text style={styles.totalValue}>{formattedTotal}</Text>
+        <View style={styles.totalsContainer}>
+          <View style={styles.purchasedTotalBox}>
+            <Text style={styles.purchasedTotalLabel}>Total comprado</Text>
+            <Text style={styles.purchasedTotalValue}>{formattedPurchasedTotal}</Text>
+          </View>
+          <Text style={styles.estimatedTotalText}>
+            Total estimado:{' '}
+            <Text style={styles.estimatedTotalValue}>{formattedEstimatedTotal}</Text>
+          </Text>
         </View>
         <PrimaryButton
           title="Finalizar compra"
@@ -364,19 +376,32 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
   },
-  totalBox: {
+  totalsContainer: {
+    marginBottom: 12,
+  },
+  purchasedTotalBox: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  totalLabel: {
-    color: '#486581',
+  purchasedTotalLabel: {
+    color: '#102a43',
     fontSize: 16,
+    fontWeight: '600',
   },
-  totalValue: {
-    fontSize: 20,
+  purchasedTotalValue: {
+    fontSize: 22,
     fontWeight: '700',
     color: '#102a43',
+  },
+  estimatedTotalText: {
+    marginTop: 6,
+    color: '#486581',
+    fontSize: 14,
+  },
+  estimatedTotalValue: {
+    color: '#486581',
+    fontWeight: '600',
   },
   historyButton: {
     alignItems: 'center',

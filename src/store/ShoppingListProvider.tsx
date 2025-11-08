@@ -33,6 +33,7 @@ interface ShoppingListContextValue {
   activeLists: ShoppingList[];
   archivedLists: ShoppingList[];
   total: number;
+  purchasedTotal: number;
   refresh: () => Promise<boolean>;
   createNewList: (name: string) => Promise<boolean>;
   createListFromSuggestion: (suggestion: ShoppingListSuggestion) => Promise<boolean>;
@@ -114,6 +115,21 @@ const ShoppingListProvider = ({
     }
     return activeList.categories.reduce((categoryAcc, category) => {
       const categoryTotal = category.items.reduce((itemAcc, item) => {
+        return itemAcc + item.price * item.quantity;
+      }, 0);
+      return categoryAcc + categoryTotal;
+    }, 0);
+  }, [activeList]);
+
+  const purchasedTotal = useMemo(() => {
+    if (!activeList) {
+      return 0;
+    }
+    return activeList.categories.reduce((categoryAcc, category) => {
+      const categoryTotal = category.items.reduce((itemAcc, item) => {
+        if (!item.purchased) {
+          return itemAcc;
+        }
         return itemAcc + item.price * item.quantity;
       }, 0);
       return categoryAcc + categoryTotal;
@@ -346,6 +362,7 @@ const ShoppingListProvider = ({
       activeLists,
       archivedLists,
       total,
+      purchasedTotal,
       refresh,
       createNewList,
       createListFromSuggestion: createListFromSuggestionHandler,
@@ -380,6 +397,7 @@ const ShoppingListProvider = ({
       selectActiveList,
       toggleItemPurchased,
       total,
+      purchasedTotal,
       updateItem,
     ],
   );
