@@ -39,11 +39,17 @@ const ChatScreen = (): JSX.Element => {
 
   const isGenerateCommand = useCallback((text: string) => {
     const normalized = text.toLowerCase();
-    return (
-      normalized.includes('gere a lista') ||
-      normalized.includes('gerar a lista') ||
-      normalized.includes('gerar lista')
-    );
+
+    const matchesVerbBeforeList =
+      /\b(ger[ea]|crie|criar|cria|monte|montar|gera|gere|gerar)\b.*\blista\b/.test(
+        normalized,
+      );
+    const matchesListBeforeVerb =
+      /\blista\b.*\b(ger[ea]|crie|criar|cria|monte|montar|gera|gere|gerar)\b/.test(
+        normalized,
+      );
+
+    return matchesVerbBeforeList || matchesListBeforeVerb;
   }, []);
 
   const handleSend = async () => {
