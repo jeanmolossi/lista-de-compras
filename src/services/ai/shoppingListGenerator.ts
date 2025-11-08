@@ -22,7 +22,15 @@ Responda SOMENTE com JSON no seguinte formato:
       ]
     }
   ]
-}`;
+}
+
+Regras obrigatórias:
+- Sempre converta quantidades de itens vendidos por peso para quilogramas com ponto decimal. Exemplo: "2,5 kg" -> quantity: 2.5 e price igual ao valor por quilo.
+- Para itens vendidos em pacotes, a quantidade deve representar o número de pacotes e o preço deve ser o valor de cada pacote, mesmo que a descrição mencione o conteúdo interno.
+- Para itens individuais (como frutas avulsas ou produtos unitários), a quantidade deve refletir o número de unidades e o preço deve ser o valor de uma unidade.
+- Informe apenas preços unitários, nunca multiplique pelo total da quantidade.
+- Crie novas categorias e itens conforme necessário, mesmo quando o usuário estiver começando do zero.
+- Nunca inclua nenhum texto fora do JSON.`;
 
 const parseContent = (content: unknown): string => {
   if (!content) {
