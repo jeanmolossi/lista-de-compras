@@ -18,7 +18,7 @@ export default [
   {
     ignores: ['node_modules', 'dist', 'build'],
   },
-  ...compat.extends('@react-native-community'),
+  ...compat.extends('@react-native/eslint-config'),
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
