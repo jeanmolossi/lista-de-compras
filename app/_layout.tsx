@@ -3,6 +3,8 @@ import { Stack } from 'expo-router';
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { SnackbarProvider } from '../src/store/SnackbarProvider';
+import { ChatSessionProvider } from '../src/store/ChatSessionProvider';
 import { ShoppingListProvider } from '../src/store/ShoppingListProvider';
 
 const navigationTheme = {
@@ -16,21 +18,25 @@ const navigationTheme = {
 export default function RootLayout(): JSX.Element {
   return (
     <SafeAreaProvider>
-      <ShoppingListProvider>
-        <ThemeProvider value={navigationTheme}>
-          <Stack
-            screenOptions={{
-              contentStyle: { backgroundColor: '#f6f6f6' },
-            }}
-          >
-            <Stack.Screen name="index" options={{ title: 'Lista de Compras' }} />
-            <Stack.Screen name="chat" options={{ title: 'Assistente IA' }} />
-            <Stack.Screen name="categories" options={{ title: 'Categorias' }} />
-            <Stack.Screen name="history" options={{ title: 'Histórico de Listas' }} />
-          </Stack>
-          <StatusBar style="dark" />
-        </ThemeProvider>
-      </ShoppingListProvider>
+      <SnackbarProvider>
+        <ChatSessionProvider>
+          <ShoppingListProvider>
+            <ThemeProvider value={navigationTheme}>
+              <Stack
+                screenOptions={{
+                  contentStyle: { backgroundColor: '#f6f6f6' },
+                }}
+              >
+                <Stack.Screen name="index" options={{ title: 'Lista de Compras' }} />
+                <Stack.Screen name="chat" options={{ title: 'Assistente IA' }} />
+                <Stack.Screen name="categories" options={{ title: 'Categorias' }} />
+                <Stack.Screen name="history" options={{ title: 'Histórico de Listas' }} />
+              </Stack>
+              <StatusBar style="dark" />
+            </ThemeProvider>
+          </ShoppingListProvider>
+        </ChatSessionProvider>
+      </SnackbarProvider>
     </SafeAreaProvider>
   );
 }

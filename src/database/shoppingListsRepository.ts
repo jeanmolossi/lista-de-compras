@@ -151,8 +151,9 @@ export const getShoppingListById = async (id: number): Promise<ShoppingList | nu
 
 const getListsByArchiveStatus = async (archived: boolean): Promise<ShoppingList[]> => {
   const condition = archived ? 'archived_at IS NOT NULL' : 'archived_at IS NULL';
+  const orderDirection = archived ? 'DESC' : 'ASC';
   const rows = await getAll<ShoppingListRow>(
-    `SELECT * FROM shopping_lists WHERE ${condition} ORDER BY created_at DESC`,
+    `SELECT * FROM shopping_lists WHERE ${condition} ORDER BY created_at ${orderDirection}`,
   );
   return buildListsGraph(rows);
 };

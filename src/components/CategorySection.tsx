@@ -6,8 +6,8 @@ interface CategorySectionProps {
   category: ShoppingCategory;
   onAddItem: (categoryId: number) => void;
   onEditItem: (item: ShoppingItem) => void;
-  onToggleItem: (itemId: number, purchased: boolean) => void;
-  onRemoveItem: (itemId: number) => void;
+  onToggleItem: (itemId: number, purchased: boolean) => void | Promise<unknown>;
+  onRemoveItem: (itemId: number) => void | Promise<unknown>;
 }
 
 const CategorySection = ({
@@ -23,7 +23,9 @@ const CategorySection = ({
       {
         text: 'Remover',
         style: 'destructive',
-        onPress: () => onRemoveItem(item.id),
+        onPress: () => {
+          Promise.resolve(onRemoveItem(item.id)).catch(() => undefined);
+        },
       },
     ]);
   };

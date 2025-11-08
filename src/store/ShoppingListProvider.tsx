@@ -25,22 +25,26 @@ import {
   updateItem as updateItemRepository,
 } from '../database/itemsRepository';
 import { ShoppingList, ShoppingListSuggestion } from './types';
+import { useSnackbar } from './SnackbarProvider';
 
 interface ShoppingListContextValue {
   loading: boolean;
   activeList: ShoppingList | null;
+  activeLists: ShoppingList[];
   archivedLists: ShoppingList[];
   total: number;
-  refresh: () => Promise<void>;
-  createNewList: (name: string) => Promise<void>;
-  createListFromSuggestion: (suggestion: ShoppingListSuggestion) => Promise<void>;
-  addCategory: (name: string) => Promise<void>;
-  renameCategory: (categoryId: number, name: string) => Promise<void>;
-  removeCategory: (categoryId: number) => Promise<void>;
+  purchasedTotal: number;
+  refresh: () => Promise<boolean>;
+  createNewList: (name: string) => Promise<boolean>;
+  createListFromSuggestion: (suggestion: ShoppingListSuggestion) => Promise<boolean>;
+  selectActiveList: (listId: number) => Promise<boolean>;
+  addCategory: (name: string) => Promise<boolean>;
+  renameCategory: (categoryId: number, name: string) => Promise<boolean>;
+  removeCategory: (categoryId: number) => Promise<boolean>;
   addItem: (
     categoryId: number,
     data: { name: string; quantity?: number; price?: number; notes?: string },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   updateItem: (
     itemId: number,
     data: {
@@ -50,12 +54,12 @@ interface ShoppingListContextValue {
       notes?: string;
       purchased: boolean;
     },
-  ) => Promise<void>;
-  toggleItemPurchased: (itemId: number, purchased: boolean) => Promise<void>;
-  removeItem: (itemId: number) => Promise<void>;
-  archiveActiveList: () => Promise<void>;
-  restoreList: (listId: number) => Promise<void>;
-  deleteList: (listId: number) => Promise<void>;
+  ) => Promise<boolean>;
+  toggleItemPurchased: (itemId: number, purchased: boolean) => Promise<boolean>;
+  removeItem: (itemId: number) => Promise<boolean>;
+  archiveActiveList: () => Promise<boolean>;
+  restoreList: (listId: number) => Promise<boolean>;
+  deleteList: (listId: number) => Promise<boolean>;
 }
 
 const ShoppingListContext = createContext<ShoppingListContextValue | undefined>(
@@ -68,8 +72,10 @@ const ShoppingListProvider = ({
   children: React.ReactNode;
 }): JSX.Element => {
   const [activeList, setActiveList] = useState<ShoppingList | null>(null);
+  const [activeLists, setActiveLists] = useState<ShoppingList[]>([]);
   const [archivedLists, setArchivedLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const { showSnackbar } = useSnackbar();
 
   const refreshAll = useCallback(
     async (preferredActiveId?: number | null) => {
@@ -77,6 +83,7 @@ const ShoppingListProvider = ({
         getActiveShoppingLists(),
         getArchivedShoppingLists(),
       ]);
+      setActiveLists(active);
       setArchivedLists(archived);
       const preferredId = preferredActiveId ?? activeList?.id ?? null;
       const nextActive =
@@ -114,29 +121,52 @@ const ShoppingListProvider = ({
     }, 0);
   }, [activeList]);
 
+  const purchasedTotal = useMemo(() => {
+    if (!activeList) {
+      return 0;
+    }
+    return activeList.categories.reduce((categoryAcc, category) => {
+      const categoryTotal = category.items.reduce((itemAcc, item) => {
+        if (!item.purchased) {
+          return itemAcc;
+        }
+        return itemAcc + item.price * item.quantity;
+      }, 0);
+      return categoryAcc + categoryTotal;
+    }, 0);
+  }, [activeList]);
+
   const withLoading = useCallback(
-    async <T,>(
-      fn: () => Promise<T>,
+    async (
+      fn: () => Promise<void>,
       getPreferredActiveId?: () => number | null,
-    ): Promise<T> => {
+    ): Promise<boolean> => {
       setLoading(true);
       try {
-        const result = await fn();
+        await fn();
         const preferredActiveId = getPreferredActiveId
           ? getPreferredActiveId()
           : undefined;
         await refreshAll(preferredActiveId);
-        return result;
+        return true;
+      } catch (error) {
+        console.error('Erro ao executar operação', error);
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível concluir a operação.';
+        showSnackbar(message, 'error');
+        return false;
       } finally {
         setLoading(false);
       }
     },
-    [refreshAll],
+    [refreshAll, showSnackbar],
   );
 
   const createNewList = useCallback(
     async (name: string) => {
-      await withLoading(async () => {
+      return withLoading(async () => {
         await createShoppingList(name);
       });
     },
@@ -146,7 +176,7 @@ const ShoppingListProvider = ({
   const createListFromSuggestionHandler = useCallback(
     async (suggestion: ShoppingListSuggestion) => {
       let createdListId: number | null = null;
-      await withLoading(
+      return withLoading(
         async () => {
           const listName = suggestion.name?.trim().length
             ? suggestion.name
@@ -175,21 +205,22 @@ const ShoppingListProvider = ({
   const addCategory = useCallback(
     async (name: string) => {
       if (!activeList) {
-        throw new Error('Nenhuma lista ativa disponível');
+        showSnackbar('Nenhuma lista ativa disponível.', 'error');
+        return false;
       }
-      await withLoading(
+      return withLoading(
         async () => {
           await createCategory(activeList.id, name);
         },
         () => activeList.id,
       );
     },
-    [activeList, withLoading],
+    [activeList, showSnackbar, withLoading],
   );
 
   const renameCategory = useCallback(
     async (categoryId: number, name: string) => {
-      await withLoading(
+      return withLoading(
         async () => {
           await updateCategory(categoryId, name);
         },
@@ -201,7 +232,7 @@ const ShoppingListProvider = ({
 
   const removeCategory = useCallback(
     async (categoryId: number) => {
-      await withLoading(
+      return withLoading(
         async () => {
           await deleteCategory(categoryId);
         },
@@ -216,7 +247,7 @@ const ShoppingListProvider = ({
       categoryId: number,
       data: { name: string; quantity?: number; price?: number; notes?: string },
     ) => {
-      await withLoading(
+      return withLoading(
         async () => {
           await createItemRepository(categoryId, data);
         },
@@ -237,7 +268,7 @@ const ShoppingListProvider = ({
         purchased: boolean;
       },
     ) => {
-      await withLoading(
+      return withLoading(
         async () => {
           await updateItemRepository(itemId, data);
         },
@@ -253,9 +284,10 @@ const ShoppingListProvider = ({
         .flatMap((category) => category.items)
         .find((current) => current.id === itemId);
       if (!item) {
-        throw new Error('Item não encontrado na lista ativa');
+        showSnackbar('Item não encontrado na lista selecionada.', 'error');
+        return false;
       }
-      await updateItem(itemId, {
+      return updateItem(itemId, {
         name: item.name,
         quantity: item.quantity,
         price: item.price,
@@ -263,12 +295,12 @@ const ShoppingListProvider = ({
         purchased,
       });
     },
-    [activeList, updateItem],
+    [activeList, showSnackbar, updateItem],
   );
 
   const removeItem = useCallback(
     async (itemId: number) => {
-      await withLoading(
+      return withLoading(
         async () => {
           await deleteItemRepository(itemId);
         },
@@ -280,16 +312,17 @@ const ShoppingListProvider = ({
 
   const archiveActiveList = useCallback(async () => {
     if (!activeList) {
-      throw new Error('Nenhuma lista ativa para arquivar');
+      showSnackbar('Nenhuma lista ativa para arquivar.', 'error');
+      return false;
     }
-    await withLoading(async () => {
+    return withLoading(async () => {
       await archiveShoppingList(activeList.id);
     });
-  }, [activeList, withLoading]);
+  }, [activeList, showSnackbar, withLoading]);
 
   const restoreList = useCallback(
     async (listId: number) => {
-      await withLoading(
+      return withLoading(
         async () => {
           await restoreShoppingList(listId);
         },
@@ -301,26 +334,39 @@ const ShoppingListProvider = ({
 
   const deleteList = useCallback(
     async (listId: number) => {
-      await withLoading(async () => {
+      return withLoading(async () => {
         await deleteShoppingList(listId);
       });
     },
     [withLoading],
   );
 
+  const selectActiveList = useCallback(
+    async (listId: number) => {
+      return withLoading(
+        async () => {},
+        () => listId,
+      );
+    },
+    [withLoading],
+  );
+
   const refresh = useCallback(async () => {
-    await withLoading(async () => {});
+    return withLoading(async () => {});
   }, [withLoading]);
 
   const value = useMemo<ShoppingListContextValue>(
     () => ({
       loading,
       activeList,
+      activeLists,
       archivedLists,
       total,
+      purchasedTotal,
       refresh,
       createNewList,
       createListFromSuggestion: createListFromSuggestionHandler,
+      selectActiveList,
       addCategory,
       renameCategory,
       removeCategory,
@@ -337,6 +383,7 @@ const ShoppingListProvider = ({
       addCategory,
       addItem,
       archiveActiveList,
+      activeLists,
       archivedLists,
       createListFromSuggestionHandler,
       createNewList,
@@ -347,8 +394,10 @@ const ShoppingListProvider = ({
       refresh,
       renameCategory,
       restoreList,
+      selectActiveList,
       toggleItemPurchased,
       total,
+      purchasedTotal,
       updateItem,
     ],
   );
