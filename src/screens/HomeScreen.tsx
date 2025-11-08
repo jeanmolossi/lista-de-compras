@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -25,12 +26,27 @@ const HomeScreen = (): JSX.Element => {
     toggleItemPurchased,
     removeItem,
     archiveActiveList,
+    createNewList,
   } = useShoppingList();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
+  const [manualListName, setManualListName] = useState('');
 
-  const formattedTotal = useMemo(() => `R$ ${total.toFixed(2)}`, [total]);
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+      }),
+    [],
+  );
+
+  const formattedTotal = useMemo(
+    () => currencyFormatter.format(total),
+    [currencyFormatter, total],
+  );
 
   const openModalToAdd = (categoryId: number) => {
     setSelectedCategoryId(categoryId);
@@ -68,6 +84,12 @@ const HomeScreen = (): JSX.Element => {
     closeModal();
   };
 
+  const handleCreateManualList = async () => {
+    const trimmedName = manualListName.trim();
+    await createNewList(trimmedName.length > 0 ? trimmedName : 'Lista manual');
+    setManualListName('');
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -95,10 +117,26 @@ const HomeScreen = (): JSX.Element => {
         {loading ? (
           <ActivityIndicator size="large" color="#1f7a8c" style={styles.loading} />
         ) : !activeList ? (
-          <Text style={styles.emptyState}>
-            Nenhuma lista ativa. Gere uma lista com IA ou crie manualmente pelas
-            categorias.
-          </Text>
+          <View style={styles.manualCreateContainer}>
+            <Text style={[styles.emptyState, styles.manualMessage]}>
+              Nenhuma lista ativa. Gere uma lista com IA ou crie uma lista manual para
+              adicionar categorias e itens.
+            </Text>
+            <TextInput
+              style={styles.manualInput}
+              placeholder="Nome da nova lista"
+              value={manualListName}
+              onChangeText={setManualListName}
+              editable={!loading}
+              accessibilityLabel="Nome da lista manual"
+            />
+            <PrimaryButton
+              title="Criar lista manual"
+              onPress={handleCreateManualList}
+              disabled={loading}
+              style={styles.manualButton}
+            />
+          </View>
         ) : activeList.categories.length === 0 ? (
           <Text style={styles.emptyState}>
             Sua lista está vazia. Comece adicionando categorias e itens.
@@ -156,6 +194,16 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 120,
   },
+  manualCreateContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 2,
+  },
   hero: {
     backgroundColor: '#1f7a8c',
     borderRadius: 20,
@@ -201,6 +249,22 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
     marginTop: 24,
+  },
+  manualInput: {
+    borderWidth: 1,
+    borderColor: '#d9e2ec',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#f8f9fb',
+    color: '#102a43',
+    marginTop: 16,
+  },
+  manualButton: {
+    marginTop: 16,
+  },
+  manualMessage: {
+    marginTop: 0,
   },
   footer: {
     position: 'absolute',

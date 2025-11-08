@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { ShoppingCategory, ShoppingItem } from '../store/types';
 
@@ -28,6 +28,25 @@ const CategorySection = ({
     ]);
   };
 
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+      }),
+    [],
+  );
+
+  const quantityFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('pt-BR', {
+        maximumFractionDigits: 3,
+        minimumFractionDigits: 0,
+      }),
+    [],
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -39,31 +58,50 @@ const CategorySection = ({
       {category.items.length === 0 ? (
         <Text style={styles.emptyMessage}>Nenhum item nesta categoria.</Text>
       ) : (
-        category.items.map((item) => (
-          <Pressable
-            key={item.id}
-            style={[styles.item, item.purchased && styles.itemPurchased]}
-            onPress={() => onToggleItem(item.id, !item.purchased)}
-          >
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemDetails}>
-                {item.quantity} x R$ {item.price.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.itemActions}>
-              <TouchableOpacity onPress={() => onEditItem(item)}>
-                <Text style={styles.linkText}>Editar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleRemoveItem(item)}
-                style={styles.deleteButton}
-              >
-                <Text style={[styles.linkText, styles.deleteText]}>Remover</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        ))
+        category.items.map((item) => {
+          const formattedPrice = currencyFormatter.format(item.price);
+          const formattedQuantity = quantityFormatter.format(item.quantity);
+          return (
+            <Pressable
+              key={item.id}
+              style={[styles.item, item.purchased && styles.itemPurchased]}
+              onPress={() => onToggleItem(item.id, !item.purchased)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: item.purchased }}
+            >
+              <View style={[styles.checkbox, item.purchased && styles.checkboxChecked]}>
+                {item.purchased && <View style={styles.checkboxIndicator} />}
+              </View>
+              <View style={styles.itemInfo}>
+                <Text
+                  style={[styles.itemName, item.purchased && styles.itemNamePurchased]}
+                  numberOfLines={1}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.itemDetails,
+                    item.purchased && styles.itemDetailsPurchased,
+                  ]}
+                >
+                  {formattedQuantity} x {formattedPrice}
+                </Text>
+              </View>
+              <View style={styles.itemActions}>
+                <TouchableOpacity onPress={() => onEditItem(item)}>
+                  <Text style={styles.linkText}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleRemoveItem(item)}
+                  style={styles.deleteButton}
+                >
+                  <Text style={[styles.linkText, styles.deleteText]}>Remover</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          );
+        })
       )}
     </View>
   );
@@ -111,6 +149,25 @@ const styles = StyleSheet.create({
   itemPurchased: {
     opacity: 0.6,
   },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#1f7a8c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: '#1f7a8c',
+  },
+  checkboxIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
+  },
   itemInfo: {
     flex: 1,
   },
@@ -118,9 +175,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#102a43',
   },
+  itemNamePurchased: {
+    textDecorationLine: 'line-through',
+  },
   itemDetails: {
     fontSize: 14,
     color: '#486581',
+  },
+  itemDetailsPurchased: {
+    textDecorationLine: 'line-through',
   },
   itemActions: {
     flexDirection: 'row',
