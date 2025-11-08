@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 type StatementParam = string | number | null;
 
 let database: SQLite.SQLiteDatabase | null = null;
+let operationQueue: Promise<void> = Promise.resolve();
 
 const MIGRATION_STATEMENTS: string[] = [
   `CREATE TABLE IF NOT EXISTS shopping_lists (
@@ -54,12 +55,30 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 
 type RunResult = Awaited<ReturnType<SQLite.SQLiteDatabase['runAsync']>>;
 
+const runSerialized = async <T>(
+  operation: (db: SQLite.SQLiteDatabase) => Promise<T>,
+): Promise<T> => {
+  const previousOperation = operationQueue;
+  let releaseQueue: () => void = () => {};
+  operationQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
+  });
+
+  await previousOperation;
+
+  try {
+    const db = await getDatabase();
+    return await operation(db);
+  } finally {
+    releaseQueue();
+  }
+};
+
 export const runQuery = async (
   sql: string,
   ...params: StatementParam[]
 ): Promise<RunResult> => {
-  const db = await getDatabase();
-  return db.runAsync(sql, ...params);
+  return runSerialized((db) => db.runAsync(sql, ...params));
 };
 
 export const extractInsertId = (result: RunResult): number => {
@@ -72,15 +91,13 @@ export const getAll = async <T>(
   sql: string,
   ...params: StatementParam[]
 ): Promise<T[]> => {
-  const db = await getDatabase();
-  return db.getAllAsync<T>(sql, ...params);
+  return runSerialized((db) => db.getAllAsync<T>(sql, ...params));
 };
 
 export const getFirst = async <T>(
   sql: string,
   ...params: StatementParam[]
 ): Promise<T | null> => {
-  const db = await getDatabase();
-  const results = await db.getAllAsync<T>(sql, ...params);
+  const results = await getAll<T>(sql, ...params);
   return results.length > 0 ? results[0] : null;
 };
