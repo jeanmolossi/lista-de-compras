@@ -18,8 +18,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   ios: {
     supportsTablet: true,
+    bundleIdentifier: 'com.anonymous.listadecomprasia',
   },
   android: {
+    package: 'com.anonymous.listadecomprasia',
     adaptiveIcon: {
       backgroundColor: '#ffffff',
     },
