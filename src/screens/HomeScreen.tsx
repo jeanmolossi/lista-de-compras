@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  LayoutChangeEvent,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +16,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import { useShoppingList } from '../store/ShoppingListProvider';
 import { ShoppingItem } from '../store/types';
 import { useSnackbar } from '../store/SnackbarProvider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HomeScreen = (): JSX.Element => {
   const router = useRouter();
@@ -37,6 +39,8 @@ const HomeScreen = (): JSX.Element => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [manualListName, setManualListName] = useState('');
+  const [footerHeight, setFooterHeight] = useState(0);
+  const insets = useSafeAreaInsets();
 
   const currencyFormatter = useMemo(
     () =>
@@ -121,9 +125,26 @@ const HomeScreen = (): JSX.Element => {
     [activeList?.id, selectActiveList],
   );
 
+  const handleFooterLayout = useCallback((event: LayoutChangeEvent) => {
+    const {
+      nativeEvent: {
+        layout: { height },
+      },
+    } = event;
+
+    setFooterHeight((currentHeight) =>
+      currentHeight === height ? currentHeight : height,
+    );
+  }, []);
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(footerHeight + insets.bottom + 24, 120) },
+        ]}
+      >
         <View style={styles.hero}>
           <Text style={styles.title}>Crie uma lista de compras com IA</Text>
           <Text style={styles.subtitle}>
@@ -217,7 +238,7 @@ const HomeScreen = (): JSX.Element => {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={styles.footer} onLayout={handleFooterLayout}>
         <View style={styles.totalsContainer}>
           <View style={styles.purchasedTotalBox}>
             <Text style={styles.purchasedTotalLabel}>Total comprado</Text>
