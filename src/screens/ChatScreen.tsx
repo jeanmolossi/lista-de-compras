@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ChatMessageBubble from '../components/ChatMessageBubble';
 import { useShoppingList } from '../store/ShoppingListProvider';
 import {
@@ -20,8 +20,11 @@ import {
 import { useChatSession, ChatMessage } from '../store/ChatSessionProvider';
 import { useSnackbar } from '../store/SnackbarProvider';
 
+const INPUT_VERTICAL_PADDING = 16;
+
 const ChatScreen = (): JSX.Element => {
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const insets = useSafeAreaInsets();
   const { createListFromSuggestion } = useShoppingList();
   const { messages, addMessage, resetSession, hydrated } = useChatSession();
   const [input, setInput] = useState('');
@@ -121,11 +124,11 @@ const ChatScreen = (): JSX.Element => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.select({ ios: 80, android: 0 })}
+        keyboardVerticalOffset={Platform.select({ ios: insets.top + 80, android: 0 })}
       >
         <FlatList
           ref={listRef}
@@ -146,7 +149,12 @@ const ChatScreen = (): JSX.Element => {
             </View>
           }
         />
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            { paddingBottom: INPUT_VERTICAL_PADDING + insets.bottom },
+          ]}
+        >
           <TextInput
             style={styles.input}
             placeholder="Ex.: Lista para churrasco com 6 pessoas"
@@ -202,7 +210,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: INPUT_VERTICAL_PADDING,
+    paddingBottom: INPUT_VERTICAL_PADDING,
     backgroundColor: '#ffffff',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#d9e2ec',
