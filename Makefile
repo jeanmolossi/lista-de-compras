@@ -83,8 +83,13 @@ bump:
 
 
 # ======= Build =======
+.PHONY: hard-clean
+hard-clean:
+	@rm -rf $(ANDROID_DIR)/app/.cxx $(ANDROID_DIR)/.cxx \
+		$(ANDROID_DIR)/app/build $(ANDROID_DIR)/build
+
 .PHONY: clean
-clean:
+clean: hard-clean
 	@cd $(ANDROID_DIR) && ./gradlew clean
 
 .PHONY: assemble-release
