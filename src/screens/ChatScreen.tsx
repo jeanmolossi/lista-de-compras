@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import ChatMessageBubble from '../components/ChatMessageBubble';
 import { useShoppingList } from '../store/ShoppingListProvider';
 import {
@@ -25,10 +27,12 @@ const INPUT_VERTICAL_PADDING = 16;
 const ChatScreen = (): JSX.Element => {
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const { createListFromSuggestion } = useShoppingList();
   const { messages, addMessage, resetSession, hydrated } = useChatSession();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const { showSnackbar } = useSnackbar();
 
   const scrollToBottom = () => {
@@ -40,6 +44,19 @@ const ChatScreen = (): JSX.Element => {
   useEffect(() => {
     scrollToBottom();
   }, [messages.length]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showListener = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideListener = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
 
   const isGenerateCommand = useCallback((text: string) => {
     const normalized = text.toLowerCase();
@@ -128,7 +145,7 @@ const ChatScreen = (): JSX.Element => {
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.select({ ios: insets.top + 80, android: 0 })}
+        keyboardVerticalOffset={Platform.select({ ios: headerHeight, android: 0 })}
       >
         <FlatList
           ref={listRef}
@@ -152,7 +169,10 @@ const ChatScreen = (): JSX.Element => {
         <View
           style={[
             styles.inputContainer,
-            { paddingBottom: INPUT_VERTICAL_PADDING + insets.bottom },
+            {
+              paddingBottom:
+                INPUT_VERTICAL_PADDING + (isKeyboardVisible ? 0 : insets.bottom),
+            },
           ]}
         >
           <TextInput
