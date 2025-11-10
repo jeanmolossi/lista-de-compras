@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
+  KeyboardEvent,
   Platform,
   StyleSheet,
   Text,
@@ -10,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ChatMessageBubble from '../components/ChatMessageBubble';
 import { useShoppingList } from '../store/ShoppingListProvider';
 import {
@@ -20,12 +21,18 @@ import {
 import { useChatSession, ChatMessage } from '../store/ChatSessionProvider';
 import { useSnackbar } from '../store/SnackbarProvider';
 
+const INPUT_VERTICAL_PADDING = 16;
+const LIST_BOTTOM_PADDING = 24;
+
 const ChatScreen = (): JSX.Element => {
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const insets = useSafeAreaInsets();
   const { createListFromSuggestion } = useShoppingList();
   const { messages, addMessage, resetSession, hydrated } = useChatSession();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const { showSnackbar } = useSnackbar();
 
   const scrollToBottom = () => {
@@ -37,6 +44,30 @@ const ChatScreen = (): JSX.Element => {
   useEffect(() => {
     scrollToBottom();
   }, [messages.length]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const handleKeyboardShow = (event: KeyboardEvent) => {
+      const inset = Math.max(event.endCoordinates.height - insets.bottom, 0);
+      setKeyboardInset(inset);
+      setKeyboardVisible(true);
+    };
+
+    const handleKeyboardHide = () => {
+      setKeyboardInset(0);
+      setKeyboardVisible(false);
+    };
+
+    const showListener = Keyboard.addListener(showEvent, handleKeyboardShow);
+    const hideListener = Keyboard.addListener(hideEvent, handleKeyboardHide);
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, [insets.bottom]);
 
   const isGenerateCommand = useCallback((text: string) => {
     const normalized = text.toLowerCase();
@@ -111,6 +142,10 @@ const ChatScreen = (): JSX.Element => {
     resetSession().catch(() => undefined);
   };
 
+  const inputBottomPadding =
+    INPUT_VERTICAL_PADDING + (isKeyboardVisible ? 0 : insets.bottom);
+  const listBottomPadding = LIST_BOTTOM_PADDING + keyboardInset + inputBottomPadding;
+
   if (!hydrated) {
     return (
       <View style={styles.loadingContainer}>
@@ -121,18 +156,19 @@ const ChatScreen = (): JSX.Element => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.select({ ios: 80, android: 0 })}
-      >
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatMessageBubble message={item} />}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              paddingBottom: listBottomPadding,
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <View style={styles.headerActions}>
@@ -146,7 +182,15 @@ const ChatScreen = (): JSX.Element => {
             </View>
           }
         />
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              paddingBottom: inputBottomPadding,
+              marginBottom: keyboardInset,
+            },
+          ]}
+        >
           <TextInput
             style={styles.input}
             placeholder="Ex.: Lista para churrasco com 6 pessoas"
@@ -166,7 +210,7 @@ const ChatScreen = (): JSX.Element => {
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -182,7 +226,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 16,
-    paddingBottom: 24,
   },
   headerActions: {
     paddingHorizontal: 16,
@@ -202,7 +245,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: INPUT_VERTICAL_PADDING,
+    paddingBottom: INPUT_VERTICAL_PADDING,
     backgroundColor: '#ffffff',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#d9e2ec',
